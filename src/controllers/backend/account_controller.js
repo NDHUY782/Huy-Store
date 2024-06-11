@@ -1,204 +1,231 @@
-const routerName = 'account';
+const routerName = "account";
 const renderName = `backend/page/${routerName}/`;
 
-const linkPrefix = `/admin/account/`
+const linkPrefix = `/admin/account/`;
 
-const util = require('util')
+const util = require("util");
 
-const notify = require(`${__path_configs}notify`)
-const paramsHelpers = require(`${__path_helpers}params`)
-const {validationResult} = require('express-validator')
+const notify = require(`${__path_configs}notify`);
+const paramsHelpers = require(`${__path_helpers}params`);
+const { validationResult } = require("express-validator");
 
 const AccountService = require(`${__path_services}backend/account_service`);
 
-
 module.exports = {
-    getlist : async (req , res , next) => {
-        let condition = {}
-        let keyword   = paramsHelpers.getParam(req.query, 'keyword', '')
-        let currentStatus = paramsHelpers.getParam(req.params, 'status', 'all')
+  getlist: async (req, res, next) => {
+    let condition = {};
+    let keyword = paramsHelpers.getParam(req.query, "keyword", "");
+    let currentStatus = paramsHelpers.getParam(req.params, "status", "all");
 
-        let { categoryAccounts } = await AccountService.getListCategory()
-        let categoryAccountsFilter = [...categoryAccounts];
-        let arrIdCategory = []
-        categoryAccounts.forEach(value => {
-            arrIdCategory.push(value.id)
-        })
+    let { categoryAccounts } = await AccountService.getListCategory();
+    let categoryAccountsFilter = [...categoryAccounts];
+    let arrIdCategory = [];
+    categoryAccounts.forEach((value) => {
+      arrIdCategory.push(value.id);
+    });
 
-        let sortField = paramsHelpers.getParam(req.session, 'sortField', 'ordering')
-        let sortType  = paramsHelpers.getParam(req.session, 'sortType', 'asc')
-        let idCategory  = paramsHelpers.getParam(req.session, 'idCategory', '')
-        let sort = {}
+    let sortField = paramsHelpers.getParam(
+      req.session,
+      "sortField",
+      "ordering"
+    );
+    let sortType = paramsHelpers.getParam(req.session, "sortType", "asc");
+    let idCategory = paramsHelpers.getParam(req.session, "idCategory", "");
+    let sort = {};
 
-        categoryAccountsFilter.unshift({ id: 'allvalue', name: 'All Category' })
+    categoryAccountsFilter.unshift({ id: "allvalue", name: "All Category" });
 
-        let pagination = {
-            totalItem       : 1,
-            totalItemPerPage: 5,
-            currentPage     : parseInt(paramsHelpers.getParam(req.query, 'page', 1)),
-            pageRange       : 3
-        }
+    let pagination = {
+      totalItem: 1,
+      totalItemPerPage: 5,
+      currentPage: parseInt(paramsHelpers.getParam(req.query, "page", 1)),
+      pageRange: 3,
+    };
 
-        sort[sortField] = sortType
+    sort[sortField] = sortType;
 
-        condition.id_category = { $in: arrIdCategory }
-        if (idCategory !== '' && idCategory !== 'allvalue') condition.role = idCategory
-        if (currentStatus !== 'all') condition.status = currentStatus
-        if (keyword !== '') condition.name = { $regex: keyword, $options: 'i' }
+    condition.id_category = { $in: arrIdCategory };
+    if (idCategory !== "" && idCategory !== "allvalue")
+      condition.role = idCategory;
+    if (currentStatus !== "all") condition.status = currentStatus;
+    if (keyword !== "") condition.name = { $regex: keyword, $options: "i" };
 
-        let { data }  = await AccountService.getAll({pagination, condition, sort})
+    let { data } = await AccountService.getAll({ pagination, condition, sort });
 
-        let choosedStatus = req.params.status;
-        let statusFilter = await AccountService.countAll({choosedStatus, arrIdCategory})
+    let choosedStatus = req.params.status;
+    let statusFilter = await AccountService.countAll({
+      choosedStatus,
+      arrIdCategory,
+    });
 
-        let pageTitle = 'Account'
- 
-        res.render(`${renderName}list` , {
-            items :        data,
-            pageTitle,
-            currentStatus,
-            keyword,
-            pagination,
-            statusFilter:  statusFilter,
-            categoryAccounts,
-            categoryAccountsFilter,
-            sortType,
-            sortField,
-            idCategory
-        })
-    },
+    let pageTitle = "Account";
 
-    getForm : async (req , res , next) => {
-        let id            = paramsHelpers.getParam(req.params, 'id', '')
+    res.render(`${renderName}list`, {
+      items: data,
+      pageTitle,
+      currentStatus,
+      keyword,
+      pagination,
+      statusFilter: statusFilter,
+      categoryAccounts,
+      categoryAccountsFilter,
+      sortType,
+      sortField,
+      idCategory,
+    });
+  },
 
-        let { categoryAccounts }   = await AccountService.getListCategory()
-        let { data, pageTitle } = await AccountService.getForm({id})
+  getForm: async (req, res, next) => {
+    let id = paramsHelpers.getParam(req.params, "id", "");
 
-        categoryAccounts.unshift({ id: 'novalue', name: 'Choose Category' })
+    let { categoryAccounts } = await AccountService.getListCategory();
+    let { data, pageTitle } = await AccountService.getForm({ id });
 
-        res.render(`${renderName}form` , {
-            pageTitle,
-            items :  data,
-            categoryAccounts
-        });
-    },
+    categoryAccounts.unshift({ id: "novalue", name: "Choose Category" });
 
-    getSort: async (req , res , next) => {
-        req.session.sortField      = paramsHelpers.getParam(req.params, 'sort_field', 'ordering')
-        req.session.sortType       = paramsHelpers.getParam(req.params, 'sort_type', 'asc')
-        
-        res.redirect(`${linkPrefix}`)
-    },
+    res.render(`${renderName}form`, {
+      pageTitle,
+      items: data,
+      categoryAccounts,
+    });
+  },
 
-    getStatus: async (req , res , next) => {
-        let id            = paramsHelpers.getParam(req.params, 'id', '')
-        let currentStatus = paramsHelpers.getParam(req.params, 'status', 'active')
-        let status        = (currentStatus === 'active') ? 'inactive' : 'active'
+  getSort: async (req, res, next) => {
+    req.session.sortField = paramsHelpers.getParam(
+      req.params,
+      "sort_field",
+      "ordering"
+    );
+    req.session.sortType = paramsHelpers.getParam(
+      req.params,
+      "sort_type",
+      "asc"
+    );
 
-        let data = await AccountService.changeStatus({id, status})
-        data.status        = status
-        data.id            = id
-        data.currentStatus = currentStatus
+    res.redirect(`${linkPrefix}`);
+  },
 
-        res.send(data) 
-    },
+  getStatus: async (req, res, next) => {
+    let id = paramsHelpers.getParam(req.params, "id", "");
+    let currentStatus = paramsHelpers.getParam(req.params, "status", "active");
+    let status = currentStatus === "active" ? "inactive" : "active";
 
-    getNumber: async (req, res, next) => {
-        let id = paramsHelpers.getParam(req.params, 'id', '')
-        let number = paramsHelpers.getParam(req.params, 'number', 0)
-        number < 0 ? number = 0 : number
-        let collection = paramsHelpers.getParam(req.params, 'collection', 0)
-        let data = {}
+    let data = await AccountService.changeStatus({ id, status });
+    data.status = status;
+    data.id = id;
+    data.currentStatus = currentStatus;
 
-        if (collection === 'Quantity') {
-            data.quantity = number
-        }
-        else if (collection === 'Ordering') {
-            data.ordering = number
-        }
-        else if (collection === 'Price') {
-            data.price = number
-        }
-        else if (collection === 'Discount') {
-            number > 100 ? number = 100 : number
-            data.discount = number
-        }
+    res.send(data);
+  },
 
-        let {success} = await AccountService.changeNumber({id, data})
+  getNumber: async (req, res, next) => {
+    let id = paramsHelpers.getParam(req.params, "id", "");
+    let number = paramsHelpers.getParam(req.params, "number", 0);
+    number < 0 ? (number = 0) : number;
+    let collection = paramsHelpers.getParam(req.params, "collection", 0);
+    let data = {};
 
-        res.send({
-            success,
-            id,
-            number,
-            collection
-        })
-    },
+    if (collection === "Quantity") {
+      data.quantity = number;
+    } else if (collection === "Ordering") {
+      data.ordering = number;
+    } else if (collection === "Price") {
+      data.price = number;
+    } else if (collection === "Discount") {
+      number > 100 ? (number = 100) : number;
+      data.discount = number;
+    }
 
-    deleteItem: async (req , res , next) => {
-        let id            = paramsHelpers.getParam(req.params, 'id', '')
+    let { success } = await AccountService.changeNumber({ id, data });
 
-        await AccountService.deleteItem({id})
+    res.send({
+      success,
+      id,
+      number,
+      collection,
+    });
+  },
 
-        req.flash('warning', notify.DELETE_SUCCESS)           
-        res.redirect(`${linkPrefix}`)
-    },
+  deleteItem: async (req, res, next) => {
+    let id = paramsHelpers.getParam(req.params, "id", "");
 
-    saveItem: async (req, res, next) => {
-        req.body = JSON.parse(JSON.stringify(req.body))
-        let item = Object.assign(req.body)
+    await AccountService.deleteItem({ id });
 
-        if(typeof item !== 'undefined' && item.id !== ""){ //edit
-            AccountService.editItem(item)
-            req.flash('success', notify.EDIT_SUCCESS) 
-            res.redirect(`${linkPrefix}`)
-        }else{ // add
-            AccountService.addItem(item)
-            req.flash('success', notify.ADD_SUCCESS) 
-            res.redirect(`${linkPrefix}`)
-        }
-    },
+    req.flash("warning", notify.DELETE_SUCCESS);
+    res.redirect(`${linkPrefix}`);
+  },
 
-    changeMultipleAction: async (req, res, next) => {
-        let action = req.body.action
-        let arrId  = req.body.cid
+  saveItem: async (req, res, next) => {
+    req.body = JSON.parse(JSON.stringify(req.body));
+    let item = Object.assign(req.body);
 
-        if (action === 'delete') {
-            let { deletedCount } = await AccountService.ChangeDeleteMultiple({arrId})
-            req.flash('success', util.format(notify.DELETE_MULTI_SUCCESS, deletedCount)) 
-            res.redirect(`${linkPrefix}`)
-        }else{
-            let { modifiedCount } = await AccountService.ChangeStatusMultiple({arrId, action})
-            req.flash('success', util.format(notify.CHANGE_STATUS_MULTI_SUCCESS, modifiedCount)) 
-            res.redirect(`${linkPrefix}`)
-        }
+    if (typeof item !== "undefined" && item.id !== "") {
+      //edit
+      AccountService.editItem(item);
+      req.flash("success", notify.EDIT_SUCCESS);
+      res.redirect(`${linkPrefix}`);
+    } else {
+      // add
+      AccountService.addItem(item);
+      req.flash("success", notify.ADD_SUCCESS);
+      res.redirect(`${linkPrefix}`);
+    }
+  },
 
-    },
+  changeMultipleAction: async (req, res, next) => {
+    let action = req.body.action;
+    let arrId = req.body.cid;
 
-    getFilterCategory: async (req , res , next) => {
-        req.session.idCategory      = paramsHelpers.getParam(req.params, 'id_category', '')
-        
-        res.redirect(`${linkPrefix}`)
-    },
+    if (action === "delete") {
+      let { deletedCount } = await AccountService.ChangeDeleteMultiple({
+        arrId,
+      });
+      req.flash(
+        "success",
+        util.format(notify.DELETE_MULTI_SUCCESS, deletedCount)
+      );
+      res.redirect(`${linkPrefix}`);
+    } else {
+      let { modifiedCount } = await AccountService.ChangeStatusMultiple({
+        arrId,
+        action,
+      });
+      req.flash(
+        "success",
+        util.format(notify.CHANGE_STATUS_MULTI_SUCCESS, modifiedCount)
+      );
+      res.redirect(`${linkPrefix}`);
+    }
+  },
 
-    getCategory: async (req, res, next) => {
-        let id = paramsHelpers.getParam(req.params, 'id', '')
-        let id_category = paramsHelpers.getParam(req.params, 'id_category', 0)
+  getFilterCategory: async (req, res, next) => {
+    req.session.idCategory = paramsHelpers.getParam(
+      req.params,
+      "id_category",
+      ""
+    );
 
-        let data = {
-            role: id_category,
-            modified: {
-                user_id: 0,
-                user_name: 'admin',
-                time: Date.now()
-            }
-        }
+    res.redirect(`${linkPrefix}`);
+  },
 
-        let {success} = await AccountService.changeCategory({id, data})
+  getCategory: async (req, res, next) => {
+    let id = paramsHelpers.getParam(req.params, "id", "");
+    let id_category = paramsHelpers.getParam(req.params, "id_category", 0);
 
-        res.send({
-            success,
-            id,
-        })
-    },
+    let data = {
+      role: id_category,
+      modified: {
+        user_id: 0,
+        user_name: "admin",
+        time: Date.now(),
+      },
+    };
 
-}
+    let { success } = await AccountService.changeCategory({ id, data });
+
+    res.send({
+      success,
+      id,
+    });
+  },
+};
